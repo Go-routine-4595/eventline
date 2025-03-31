@@ -9,15 +9,15 @@ import (
 )
 
 type Element struct {
-	timeStramp time.Time
-	id         string
-	company    string
-	continent  string
-	city       string
+	TimeStamp time.Time
+	id        string
+	company   string
+	continent string
+	city      string
 }
 
 func (e Element) GetTimeStamp() time.Time {
-	return e.timeStramp
+	return e.TimeStamp
 }
 
 func (e Element) GetEventPresentation() string {
@@ -26,15 +26,15 @@ func (e Element) GetEventPresentation() string {
 		e.company,
 		e.continent,
 		e.city,
-		e.timeStramp.Local().Format(time.RFC3339))
+		e.TimeStamp.Local().Format(time.RFC3339))
 }
 
 func main() {
-	live()
+	live[Element]()
 }
 
-func static() {
-	events := make(map[string]interface{})
+func static[T eventline.Event]() {
+	events := make(map[string]T)
 	for i := 0; i < 15; i++ {
 		events = CreateData(events)
 		res := eventline.DebugSortMapByTime(events, eventline.Asc)
@@ -47,14 +47,15 @@ func static() {
 		time.Sleep(time.Second)
 	}
 }
-func live() {
+
+func live[T eventline.Event]() {
 	ctx, cancel := context.WithCancel(context.Background())
-	ev := eventline.NewPresenter("my test")
+	ev := eventline.NewPresenter[T]("my test")
 	ev.WithLogFile("logs")
 	ev.TimedOrdered(eventline.Desc)
 	go ev.Start(cancel, ctx)
 	count := 0
-	events := make(map[string]interface{})
+	events := make(map[string]T)
 
 	t := time.NewTicker(time.Second)
 	defer t.Stop()
@@ -62,7 +63,6 @@ loop:
 	for {
 		select {
 		case <-t.C:
-			//TODO
 			if count == 40 {
 				cancel()
 				break loop
@@ -75,14 +75,17 @@ loop:
 	}
 }
 
-func CreateData(list map[string]interface{}) map[string]interface{} {
+func CreateData[T eventline.Event](list map[string]T) map[string]T {
 	id := fake.DomainName()
-	list[id] = Element{
-		timeStramp: time.Now(),
-		id:         id,
-		company:    fake.Company(),
-		continent:  fake.Continent(),
-		city:       fake.City(),
+	element := Element{
+		TimeStamp: time.Now(),
+		id:        id,
+		company:   fake.Company(),
+		continent: fake.Continent(),
+		city:      fake.City(),
 	}
+	// Convert Element to T using type assertion on an interface
+	var event T = any(element).(T)
+	list[id] = event
 	return list
 }

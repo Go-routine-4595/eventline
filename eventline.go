@@ -12,33 +12,37 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type Events struct {
-	GlobalEvents int
-	EventsMap    map[string]interface{}
+// Event interface remains the same
+type Event interface {
+	GetEventPresentation() string
+	GetTimeStamp() time.Time
 }
 
-func NewEventHandler(ge int, em map[string]interface{}) Events {
-	return Events{
+// Modified Events struct to use generics
+type Events[T Event] struct {
+	GlobalEvents int
+	EventsMap    map[string]T
+}
+
+// Modified constructor with generics
+func NewEventHandler[T Event](ge int, em map[string]T) Events[T] {
+	return Events[T]{
 		GlobalEvents: ge,
 		EventsMap:    em,
 	}
 }
 
-func (e Events) GetGlobalEventsNumber() int {
+// Modified accessor methods
+func (e Events[T]) GetGlobalEventsNumber() int {
 	return e.GlobalEvents
 }
 
-func (e Events) GetEventsMap() map[string]interface{} {
+func (e Events[T]) GetEventsMap() map[string]T {
 	return e.EventsMap
 }
 
-func (e Events) GetEventsListSize() int {
+func (e Events[T]) GetEventsListSize() int {
 	return len(e.EventsMap)
-}
-
-type Event interface {
-	GetEventPresentation() string
-	GetTimeStamp() time.Time
 }
 
 const (
@@ -51,9 +55,10 @@ const (
 	Asc
 )
 
-type EventLine struct {
+// Modified EventLine to use generics
+type EventLine[T Event] struct {
 	screen      tcell.Screen
-	dataCh      chan Events
+	dataCh      chan Events[T]
 	titleStyle  tcell.Style
 	textStyle   tcell.Style
 	log         zerolog.Logger
@@ -77,10 +82,10 @@ func initLoggingFile(fileName string) *os.File {
 
 func LogInint(file *os.File) zerolog.Logger {
 	return zerolog.New(file).With().Timestamp().Logger()
-
 }
 
-func NewPresenter(title string) *EventLine {
+// NewPresenter initializes and returns a new instance of EventLine with a title and configured tcell screen for display.
+func NewPresenter[T Event](title string) *EventLine[T] {
 	var (
 		err    error
 		screen tcell.Screen
@@ -95,9 +100,9 @@ func NewPresenter(title string) *EventLine {
 		log.Fatal().Msgf("Error initializing tcell: %v", err)
 	}
 
-	return &EventLine{
+	return &EventLine[T]{
 		screen:      screen,
-		dataCh:      make(chan Events, 5),
+		dataCh:      make(chan Events[T], 5),
 		titleStyle:  tcell.StyleDefault.Foreground(tcell.ColorYellow).Bold(true),
 		textStyle:   tcell.StyleDefault.Foreground(tcell.ColorWhite),
 		loggingFile: nil,
@@ -105,25 +110,29 @@ func NewPresenter(title string) *EventLine {
 	}
 }
 
-func (p *EventLine) WithLogFile(fileName string) *EventLine {
+// WithLogFile associates a log file with the EventLine instance for logging operations and initializes the logger.
+func (p *EventLine[T]) WithLogFile(fileName string) *EventLine[T] {
 	loggingFile := initLoggingFile(fileName)
 	p.loggingFile = loggingFile
 	p.log = LogInint(loggingFile)
 	return p
 }
 
-func (p *EventLine) AlphabeticalOrdered() *EventLine {
+// AlphabeticalOrdered sets the sorting style of the EventLine to alphabetical order and returns the updated instance.
+func (p *EventLine[T]) AlphabeticalOrdered() *EventLine[T] {
 	p.style = Aphabetical
 	return p
 }
 
-func (p *EventLine) TimedOrdered(order int) *EventLine {
+// TimedOrdered configures the EventLine to sort events based on their timestamp and the specified order.
+func (p *EventLine[T]) TimedOrdered(order int) *EventLine[T] {
 	p.style = Time
 	p.order = order
 	return p
 }
 
-func (p *EventLine) Start(cancel func(), ctx context.Context) {
+// Start initializes the EventLine's main loop, handling data processing, screen updates, and context cancellation.
+func (p *EventLine[T]) Start(cancel func(), ctx context.Context) {
 	var (
 		eventCount int
 		alarmCount int
@@ -147,39 +156,34 @@ func (p *EventLine) Start(cancel func(), ctx context.Context) {
 			alarmCount = data.GetGlobalEventsNumber()
 		case <-time.After(5 * time.Second):
 			p.log.Info().Msg("Timeout occurred, no data received")
-
 		case <-ctx.Done():
 			p.log.Info().Msg("Context Done")
 			return
-
 		default:
 			p.log.Debug().Msg("No data available, skipping")
 		}
 
 		// Update screen
 		p.screen.Show()
-
 		time.Sleep(1 * time.Second)
-
 	}
 }
 
-func (p *EventLine) applyStyle(events map[string]interface{}) []string {
-
+// applyStyle sorts and processes the input events map into a slice of strings based on the configured style and order.
+func (p *EventLine[T]) applyStyle(events map[string]T) []string {
 	switch p.style {
 	case Aphabetical:
 		return sortMapByKey(events)
 	case Time:
-		//TODO
 		p.log.Debug().Msgf("events: %+v", events)
 		return sortMapByTime(events, p.order)
 	default:
-		//TODO
 		return sortMapByKey(events)
 	}
 }
 
-func (p *EventLine) listenKey(cancel func()) {
+// listenKey handles key press events such as application exit, screen sync, or screen clear based on the pressed key.
+func (p *EventLine[T]) listenKey(cancel func()) {
 	for {
 		// Poll event
 		evP := p.screen.PollEvent()
@@ -202,11 +206,11 @@ func (p *EventLine) listenKey(cancel func()) {
 	}
 }
 
-func (p *EventLine) Stop() {
-
+func (p *EventLine[T]) Stop() {
 }
 
-func (p *EventLine) Send(data Events) {
+// Send publishes the given event data through the EventLine's internal channel for further processing and display.
+func (p *EventLine[T]) Send(data Events[T]) {
 	p.log.Debug().Msg("Sending data")
 	if p.dataCh != nil {
 		if len(p.dataCh) < 5 {
@@ -220,35 +224,35 @@ func (p *EventLine) Send(data Events) {
 	p.log.Debug().Msg("Channel is nil")
 }
 
-func (p *EventLine) title(counter int, trucks int) {
+// title updates the display header with the title string, current time, global event counter, and event count.
+func (p *EventLine[T]) title(counter int, trucks int) {
 	// Current time
 	currentTime := time.Now().Local()
 	// Format the time up to the second
 	formattedTime := currentTime.Format("2006-01-02 15:04:05")
-
 	writeText(p.screen, 0, 0, p.titleStyle, p.titleString)
 	writeText(p.screen, 0, 1, p.titleStyle, fmt.Sprintf("Time: %-24s -- Global Counter: %-4d", formattedTime, counter))
 	writeText(p.screen, 31, 2, p.titleStyle, fmt.Sprintf("--    Event Count: %-4d", trucks))
 }
 
-func (p *EventLine) debug(msg string) {
+// debug renders a debug message on the screen at a fixed position using the specified style.
+func (p *EventLine[T]) debug(msg string) {
 	writeText(p.screen, 0, 3, p.titleStyle, msg)
 }
 
-func (p *EventLine) displayMap(data []string) {
-
+// displayMap renders the provided data slice onto the screen, starting from a fixed row position with a specific style.
+func (p *EventLine[T]) displayMap(data []string) {
 	// Display the data in the map
 	row := 4
 	dataStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 	for _, truck := range data {
-		//writeText(screen, 0, row, dataStyle, fmt.Sprintf("Truck: %s - Alarms: %d", truck, count))
 		writeText(p.screen, 0, row, dataStyle, truck)
 		row++
 	}
-
 }
 
-func DebugSortMapByTime(data map[string]interface{}, order int) []string {
+// Modified sorting functions
+func DebugSortMapByTime[T Event](data map[string]T, order int) []string {
 	return sortMapByTime(data, order)
 }
 
@@ -258,40 +262,35 @@ func writeText(screen tcell.Screen, x, y int, style tcell.Style, text string) {
 	}
 }
 
-func sortMapByKey(data map[string]interface{}) []string {
+// sortMapByKey sorts a map by its string keys in ascending order and returns a slice of event presentations as strings.
+func sortMapByKey[T Event](data map[string]T) []string {
 	// Get all keys from the map
 	keys := make([]string, 0, len(data))
 	for key := range data {
 		keys = append(keys, key)
 	}
-
 	// Sort the keys
 	sort.Strings(keys)
-
 	// Build the ordered result
 	result := make([]string, 0, len(data))
 	for _, key := range keys {
-		//result = append(result, fmt.Sprintf("Truck: %-9s - Alarms: %4d - Last alarm: %s-24", key, data[key].Count, data[key].Date.Local().String()))
-		result = append(result, data[key].(Event).GetEventPresentation())
+		result = append(result, data[key].GetEventPresentation())
 	}
 	return result
 }
 
-// sortMapByTime sorts a map of events by their timestamp in ascending or descending order based on the given order parameter.
-// It takes a map of string keys to Event values and an integer order (0 for descending, 1 for ascending) as input.
-// Returns a slice of event presentations sorted by timestamp according to the specified order.
-func sortMapByTime(data map[string]interface{}, order int) []string {
-
+// sortMapByTime sorts the input map of events by timestamp in ascending or descending order based on the order parameter.
+// Returns a slice of event presentations ordered by the specified criteria.
+func sortMapByTime[T Event](data map[string]T, order int) []string {
 	// result and timeStamps are built in order, all elements in them are ordered based on the criteria "order"
 	result := make([]string, len(data))
 	timeStamps := make([]int64, len(data))
 	index := 0
 	posToInsert := 0
 	for key, e := range data {
-		//result = append(result, fmt.Sprintf("Truck: %-9s - Alarms: %4d - Last alarm: %s-24", key, data[key].Count, data[key].Date.Local().String()))
 		posToInsert = index
 		index++
-		v := e.(Event).GetTimeStamp().UnixMilli()
+		v := e.GetTimeStamp().UnixMilli()
 	loop:
 		for i := 0; i < index-1; i++ {
 			if compareUsing(v, timeStamps[i], order) {
@@ -304,11 +303,12 @@ func sortMapByTime(data map[string]interface{}, order int) []string {
 			}
 		}
 		timeStamps[posToInsert] = v
-		result[posToInsert] = data[key].(Event).GetEventPresentation()
+		result[posToInsert] = data[key].GetEventPresentation()
 	}
 	return result
 }
 
+// shitDownFromIndex shifts elements in two slices from the start index down to the stop index.
 func shitDownFromIndex(t []int64, s []string, start int, stop int) {
 	for i := start; i > stop; i-- {
 		t[i] = t[i-1]
@@ -326,12 +326,3 @@ func compareUsing(a int64, b int64, order int) bool {
 		return false
 	}
 }
-
-/*
-0: 4
-1: 6
-2: 7
-3:
-4:
-
-*/
