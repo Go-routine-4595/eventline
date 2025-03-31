@@ -95,19 +95,19 @@ func (m mockEvent) GetEventPresentation() string {
 func TestSortMapByTime(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    map[string]interface{}
+		input    map[string]Event
 		order    int
 		expected []string
 	}{
 		{
 			name:     "empty map",
-			input:    map[string]interface{}{},
+			input:    map[string]Event{},
 			order:    1,
 			expected: []string{},
 		},
 		{
 			name: "single element",
-			input: map[string]interface{}{
+			input: map[string]Event{
 				"event1": mockEvent{timestamp: time.UnixMilli(1000), eventPresentation: "Event 1"},
 			},
 			order:    1,
@@ -115,7 +115,7 @@ func TestSortMapByTime(t *testing.T) {
 		},
 		{
 			name: "multiple elements in order",
-			input: map[string]interface{}{
+			input: map[string]Event{
 				"event1": mockEvent{timestamp: time.UnixMilli(1000), eventPresentation: "Event 1"},
 				"event2": mockEvent{timestamp: time.UnixMilli(2000), eventPresentation: "Event 2"},
 			},
@@ -124,7 +124,7 @@ func TestSortMapByTime(t *testing.T) {
 		},
 		{
 			name: "multiple elements out of order",
-			input: map[string]interface{}{
+			input: map[string]Event{
 				"event2": mockEvent{timestamp: time.UnixMilli(2000), eventPresentation: "Event 2"},
 				"event1": mockEvent{timestamp: time.UnixMilli(1000), eventPresentation: "Event 1"},
 			},
@@ -133,7 +133,7 @@ func TestSortMapByTime(t *testing.T) {
 		},
 		{
 			name: "elements with same timestamp",
-			input: map[string]interface{}{
+			input: map[string]Event{
 				"event1": mockEvent{timestamp: time.UnixMilli(1000), eventPresentation: "Event 1"},
 				"event2": mockEvent{timestamp: time.UnixMilli(1000), eventPresentation: "Event 2"},
 			},
@@ -142,7 +142,7 @@ func TestSortMapByTime(t *testing.T) {
 		},
 		{
 			name: "multiple elements with mixed timestamps",
-			input: map[string]interface{}{
+			input: map[string]Event{
 				"event3": mockEvent{timestamp: time.UnixMilli(3000), eventPresentation: "Event 3"},
 				"event1": mockEvent{timestamp: time.UnixMilli(1000), eventPresentation: "Event 1"},
 				"event2": mockEvent{timestamp: time.UnixMilli(2000), eventPresentation: "Event 2"},
@@ -152,7 +152,7 @@ func TestSortMapByTime(t *testing.T) {
 		},
 		{
 			name: "multiple elements with mixed timestamps",
-			input: map[string]interface{}{
+			input: map[string]Event{
 				"event3": mockEvent{timestamp: time.UnixMilli(3000), eventPresentation: "Event 3"},
 				"event1": mockEvent{timestamp: time.UnixMilli(1000), eventPresentation: "Event 1"},
 				"event2": mockEvent{timestamp: time.UnixMilli(2000), eventPresentation: "Event 2"},
