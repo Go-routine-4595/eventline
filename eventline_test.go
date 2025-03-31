@@ -156,9 +156,21 @@ func TestSortMapByTime(t *testing.T) {
 				"event3": mockEvent{timestamp: time.UnixMilli(3000), eventPresentation: "Event 3"},
 				"event1": mockEvent{timestamp: time.UnixMilli(1000), eventPresentation: "Event 1"},
 				"event2": mockEvent{timestamp: time.UnixMilli(2000), eventPresentation: "Event 2"},
+				"event0": mockEvent{timestamp: time.UnixMilli(500), eventPresentation: "Event 0"},
+			},
+			order:    1,
+			expected: []string{"Event 0", "Event 1", "Event 2", "Event 3"},
+		},
+		{
+			name: "multiple elements with mixed timestamps",
+			input: map[string]Event{
+				"event3": mockEvent{timestamp: time.UnixMilli(3000), eventPresentation: "Event 3"},
+				"event1": mockEvent{timestamp: time.UnixMilli(1000), eventPresentation: "Event 1"},
+				"event2": mockEvent{timestamp: time.UnixMilli(2000), eventPresentation: "Event 2"},
+				"event0": mockEvent{timestamp: time.UnixMilli(500), eventPresentation: "Event 0"},
 			},
 			order:    0,
-			expected: []string{"Event 3", "Event 2", "Event 1"},
+			expected: []string{"Event 3", "Event 2", "Event 1", "Event 0"},
 		},
 	}
 
