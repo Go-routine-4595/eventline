@@ -10,61 +10,73 @@ func TestShift(t *testing.T) {
 		name      string
 		t         []int64
 		s         []string
+		i         []string
 		start     int
 		stop      int
 		expectedT []int64
 		expectedS []string
+		expectedI []string
 	}{
 		{
 			name:      "shitDownFromIndex single element",
 			t:         []int64{10, 20, 30, 40},
 			s:         []string{"a", "b", "c", "d"},
+			i:         []string{"a", "b", "c", "d"},
 			start:     1,
 			stop:      0,
 			expectedT: []int64{10, 10, 30, 40},
 			expectedS: []string{"a", "a", "c", "d"},
+			expectedI: []string{"a", "a", "c", "d"},
 		},
 		{
 			name:      "shitDownFromIndex entire array",
 			t:         []int64{10, 20, 30, 40},
 			s:         []string{"a", "b", "c", "d"},
+			i:         []string{"a", "b", "c", "d"},
 			start:     2,
 			stop:      0,
 			expectedT: []int64{10, 10, 20, 40},
 			expectedS: []string{"a", "a", "b", "d"},
+			expectedI: []string{"a", "a", "b", "d"},
 		},
 		{
 			name:      "shitDownFromIndex with single element range",
 			t:         []int64{10, 20, 30, 40},
 			s:         []string{"a", "b", "c", "d"},
+			i:         []string{"a", "b", "c", "d"},
 			start:     2,
 			stop:      1,
 			expectedT: []int64{10, 20, 20, 40},
 			expectedS: []string{"a", "b", "b", "d"},
+			expectedI: []string{"a", "b", "b", "d"},
 		},
 		{
 			name:      "shitDownFromIndex with no effect",
 			t:         []int64{10, 20, 30, 40},
 			s:         []string{"a", "b", "c", "d"},
+			i:         []string{"a", "b", "c", "d"},
 			start:     3,
 			stop:      2,
 			expectedT: []int64{10, 20, 30, 30},
 			expectedS: []string{"a", "b", "c", "c"},
+			expectedI: []string{"a", "b", "c", "c"},
 		},
 		{
 			name:      "shitDownFromIndex edge case at start of array",
 			t:         []int64{10, 20, 30, 40},
 			s:         []string{"a", "b", "c", "d"},
+			i:         []string{"a", "b", "c", "d"},
 			start:     3,
 			stop:      1,
 			expectedT: []int64{10, 20, 20, 30},
 			expectedS: []string{"a", "b", "b", "c"},
+			expectedI: []string{"a", "b", "b", "c"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			shitDownFromIndex(tt.t, tt.s, tt.start, tt.stop)
+			shiftDownFromIndex(tt.t, tt.s, tt.i, tt.start, tt.stop)
 			for i, v := range tt.expectedT {
 				if tt.t[i] != v {
 					t.Errorf("unexpected value at index %d in timestamps: expected %v, got %v", i, v, tt.t[i])
@@ -176,7 +188,7 @@ func TestSortMapByTime(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := sortMapByTime(tt.input, tt.order)
+			result, _ := sortMapByTime(tt.input, tt.order, "")
 			if len(result) != len(tt.expected) {
 				t.Errorf("expected %v elements, got %v", len(tt.expected), len(result))
 			}

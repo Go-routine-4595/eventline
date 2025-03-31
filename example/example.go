@@ -36,8 +36,8 @@ func main() {
 func static[T eventline.Event]() {
 	events := make(map[string]T)
 	for i := 0; i < 15; i++ {
-		events = CreateData(events)
-		res := eventline.DebugSortMapByTime(events, eventline.Asc)
+		events, _ = CreateData(events)
+		res, _ := eventline.DebugSortMapByTime(events, eventline.Asc)
 		fmt.Println("-------------------------------------------------------------")
 		fmt.Println("Count: ", i)
 		for _, element := range res {
@@ -49,10 +49,12 @@ func static[T eventline.Event]() {
 }
 
 func live[T eventline.Event]() {
+	var lastID string
+
 	ctx, cancel := context.WithCancel(context.Background())
 	ev := eventline.NewPresenter[T]("my test")
 	ev.WithLogFile("logs")
-	ev.TimedOrdered(eventline.Desc)
+	ev.TimedOrdered(eventline.Asc)
 	go ev.Start(cancel, ctx)
 	count := 0
 	events := make(map[string]T)
@@ -63,19 +65,23 @@ loop:
 	for {
 		select {
 		case <-t.C:
-			if count == 40 {
-				cancel()
-				break loop
+			if count <= 40 {
+				count++
+				events, lastID = CreateData(events)
+				pre := eventline.NewEventHandler(count, events, lastID)
+				ev.Send(pre)
 			}
-			count++
-			events = CreateData(events)
-			pre := eventline.NewEventHandler(count, events)
-			ev.Send(pre)
+		case <-ctx.Done():
+			ev.Stop()
+			break loop
+		default:
+
 		}
 	}
+	ev.Stop()
 }
 
-func CreateData[T eventline.Event](list map[string]T) map[string]T {
+func CreateData[T eventline.Event](list map[string]T) (map[string]T, string) {
 	id := fake.DomainName()
 	element := Element{
 		TimeStamp: time.Now(),
@@ -87,5 +93,5 @@ func CreateData[T eventline.Event](list map[string]T) map[string]T {
 	// Convert Element to T using type assertion on an interface
 	var event T = any(element).(T)
 	list[id] = event
-	return list
+	return list, id
 }
