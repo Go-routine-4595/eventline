@@ -55,15 +55,7 @@ func (e Events[T]) GetGlobalEventsNumber() int {
 
 // GetEventsMap returns a shallow copy of the EventsMap, ensuring the original map remains unaffected by modifications.
 func (e Events[T]) GetEventsMap() map[string]T {
-	// Create a new map with the same capacity
-	copyMap := make(map[string]T, len(e.EventsMap))
-
-	// Copy all key-value pairs
-	for key, value := range e.EventsMap {
-		copyMap[key] = value
-	}
-
-	return copyMap
+	return e.EventsMap
 }
 
 // GetEventsListSize returns the number of events currently stored in the EventsMap.
@@ -74,6 +66,22 @@ func (e Events[T]) GetEventsListSize() int {
 // GetLastUpdateID retrieves the identifier of the most recent update from the Events collection.
 func (e Events[T]) GetLastUpdateID() string {
 	return e.LastUpdate
+}
+
+// DeepCopy creates a deep copy of the provided Events[T] instance, ensuring all contained data is duplicated.
+func DeepCopy[T Event](e Events[T]) Events[T] {
+	// Create a new map with the same capacity
+	copyMap := make(map[string]T, len(e.EventsMap))
+
+	// Copy all key-value pairs
+	for key, value := range e.EventsMap {
+		copyMap[key] = value
+	}
+	return Events[T]{
+		GlobalEvents: e.GlobalEvents,
+		EventsMap:    copyMap,
+		LastUpdate:   e.LastUpdate,
+	}
 }
 
 const (
@@ -311,13 +319,16 @@ func (p *EventLine[T]) Stop() {
 func (p *EventLine[T]) Send(data Events[T]) {
 	p.log.Debug().Msg("Sending data")
 	if p.dataCh != nil {
-		if len(p.dataCh) < 5 {
-			p.dataCh <- data
+		var dataToSend Events[T]
+		dataToSend = DeepCopy(data)
+		select {
+		case p.dataCh <- dataToSend:
 			p.log.Debug().Msg("Channel successful send data")
 			return
+		default:
+			p.log.Debug().Msg("Channel is full")
+			return
 		}
-		p.log.Debug().Msg("Channel is full")
-		return
 	}
 	p.log.Debug().Msg("Channel is nil")
 }

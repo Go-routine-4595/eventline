@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/icrowley/fake"
+	"slices"
+	"strconv"
 	"time"
 )
 
@@ -54,7 +56,7 @@ func live[T eventline.Event]() {
 	ctx, cancel := context.WithCancel(context.Background())
 	ev := eventline.NewPresenter[T]("my test")
 	ev.WithLogFile("logs")
-	ev.TimedOrdered(eventline.Asc)
+	ev.TimedOrdered(eventline.Aphabetical)
 	go ev.Start(cancel, ctx)
 	count := 0
 	events := make(map[string]T)
@@ -67,7 +69,8 @@ loop:
 		case <-t.C:
 			if count <= 40 {
 				count++
-				events, lastID = CreateData(events)
+				//events, lastID = CreateData(events)
+				events, lastID = CreateDataWithIDasNumber(events, count)
 				pre := eventline.NewEventHandler(count, events, lastID)
 				ev.Send(pre)
 			}
@@ -94,4 +97,48 @@ func CreateData[T eventline.Event](list map[string]T) (map[string]T, string) {
 	var event T = any(element).(T)
 	list[id] = event
 	return list, id
+}
+
+func CreateDataWithIDasNumber[T eventline.Event](list map[string]T, id int) (map[string]T, string) {
+	list = AddOrReplace(list, 10)
+	idString := strconv.Itoa(id)
+	element := Element{
+		TimeStamp: time.Now(),
+		id:        idString,
+		company:   fake.Company(),
+		continent: fake.Continent(),
+		city:      fake.City(),
+	}
+	// Convert Element to T using type assertion on an interface
+	var event T = any(element).(T)
+	list[idString] = event
+	return list, idString
+}
+
+func AddOrReplace[T eventline.Event](list map[string]T, limit int) map[string]T {
+	if len(list) >= limit {
+		keyList := getKeys(list)
+		slices.SortFunc(keyList, func(a, b string) int {
+			ai, _ := strconv.Atoi(a)
+			bi, _ := strconv.Atoi(b)
+			if ai > bi {
+				return -1
+			}
+			if ai < bi {
+				return 1
+			}
+			return 0
+		})
+		delete(list, keyList[len(keyList)-1])
+	}
+
+	return list
+}
+
+func getKeys[T eventline.Event](list map[string]T) []string {
+	keys := make([]string, 0, len(list))
+	for key := range list {
+		keys = append(keys, key)
+	}
+	return keys
 }
