@@ -404,7 +404,7 @@ func sortMapByKey[T Event](data map[string]T, lastUpdate string) ([]string, int)
 	sort.Strings(keys)
 
 	// Build the ordered result
-	result := make([]string, 0, len(data))
+	result := make([]string, len(data))
 
 	for i, key := range keys {
 		result[i] = data[key].GetEventPresentation()
