@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	refreshRate = 500 * time.Millisecond
+	refreshRate = 200 * time.Millisecond
 	titleHeight = 4
 )
 
@@ -146,7 +146,7 @@ func NewPresenter[T Event](title string) *EventLine[T] {
 
 	return &EventLine[T]{
 		screen:       screen,
-		dataCh:       make(chan Events[T], 5),
+		dataCh:       make(chan Events[T], 50),
 		titleStyle:   tcell.StyleDefault.Foreground(tcell.ColorYellow).Bold(true),
 		textStyle:    tcell.StyleDefault.Foreground(tcell.ColorWhite),
 		highlight:    tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorWhite),
@@ -199,7 +199,7 @@ func (p *EventLine[T]) Start(cancel func(), ctx context.Context) {
 	_, rows = p.screen.Size()
 
 	ticker = time.Ticker{C: time.Tick(5 * time.Second)}
-
+	refreshTicker := time.NewTicker(refreshRate)
 	// clear the screen
 	p.screen.Clear()
 	p.title(alarmCount, eventCount)
@@ -249,21 +249,26 @@ func (p *EventLine[T]) Start(cancel func(), ctx context.Context) {
 			default:
 				// we ignore other key press
 			}
+			p.Refresh(alarmCount, eventCount, dataString, position, userPosition, lastUpdateIndex)
+
+		case <-refreshTicker.C:
+			p.Refresh(alarmCount, eventCount, dataString, position, userPosition, lastUpdateIndex)
 
 		default:
-			p.log.Debug().Msg("No data available, skipping")
-			// Update screen
-			p.displayMap(dataString, position, userPosition, lastUpdateIndex)
-			p.screen.Show()
 
-			time.Sleep(refreshRate)
-			//clear the screen
-			p.screen.Clear()
-			p.title(alarmCount, eventCount)
 		}
 	}
 }
 
+// Refresh clears the screen, updates the title, and renders event data at specified positions with highlighting.
+func (p *EventLine[T]) Refresh(alrmCount int, eventCount int, dataString []string, position int, userPosition int, lastUpdateIndex int) {
+	p.screen.Clear()
+	p.title(alrmCount, eventCount)
+	p.displayMap(dataString, position, userPosition, lastUpdateIndex)
+	p.screen.Show()
+}
+
+// Close releases resources associated with the screen and log file, ensuring proper cleanup and termination.
 func (p *EventLine[T]) Close() {
 	p.screen.Fini()
 	p.log.Info().Msg("Exiting!")
