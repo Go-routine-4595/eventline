@@ -1,4 +1,4 @@
-module Go-routine-4595/eventline
+module github.com/Go-routine-4595/eventline
 
 go 1.24.2
 
