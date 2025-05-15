@@ -471,7 +471,7 @@ func shiftDownFromIndex(t []int64, s []string, id []string, start int, stop int)
 func compareUsing(a int64, b int64, order int) bool {
 	switch order {
 	case Desc:
-		return a > b
+		return a >= b
 	case Asc:
 		return a < b
 	default:
